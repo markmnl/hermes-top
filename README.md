@@ -7,7 +7,7 @@ reading Hermes's SQLite `state.db`.
 
 **It never writes to the database and cannot interfere with a running Hermes.**
 
-[image: hermes-top] ./docs/hermes-top.png
+![image: hermes-top](./docs/hermes-top.png)
 
 ## Requirements
 
