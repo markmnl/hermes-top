@@ -27,10 +27,18 @@ func (m *model) applyDelta(d poll.Delta) {
 	sort.SliceStable(newEvents, func(i, j int) bool {
 		return newEvents[i].Time.Before(newEvents[j].Time)
 	})
+	for i := range newEvents {
+		m.eventSeq++
+		newEvents[i].Seq = m.eventSeq
+	}
 
 	m.events = append(m.events, newEvents...)
 	if len(m.events) > eventCap {
-		m.events = m.events[len(m.events)-eventCap:]
+		over := len(m.events) - eventCap
+		for i := 0; i < over; i++ {
+			delete(m.expandedEvents, m.events[i].Seq)
+		}
+		m.events = m.events[over:]
 	}
 }
 
@@ -85,11 +93,16 @@ func (m *model) foldMessageAction(msg db.Message) {
 // appendAction adds an action to a session's timeline, trimming the oldest when
 // the per-session cap is exceeded (and forgetting its call-id index entry).
 func (m *model) appendAction(sessionID string, a *derive.Action) {
+	if a.Seq == 0 {
+		m.actionSeq++
+		a.Seq = m.actionSeq
+	}
 	list := m.actions[sessionID]
 	list = append(list, a)
 	if len(list) > actionCap {
 		drop := list[0]
 		list = list[1:]
+		delete(m.expandedActions, drop.Seq)
 		if drop.CallID != "" {
 			if cur, ok := m.actionByCall[drop.CallID]; ok && cur == drop {
 				delete(m.actionByCall, drop.CallID)

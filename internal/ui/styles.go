@@ -39,6 +39,12 @@ type styles struct {
 	accent  lipgloss.Style
 	label   lipgloss.Style
 	value   lipgloss.Style
+	cursor  lipgloss.Style // cursor gutter marker (▸) in the actions/events panes
+
+	jsonKey lipgloss.Style // JSON object keys
+	jsonStr lipgloss.Style // JSON string values
+	jsonNum lipgloss.Style // JSON numbers/booleans/null
+	jsonPn  lipgloss.Style // JSON punctuation ({ } [ ] : ,)
 
 	roleUser      lipgloss.Style
 	roleAssistant lipgloss.Style
@@ -81,6 +87,12 @@ func newStyles() styles {
 	s.accent = lipgloss.NewStyle().Foreground(colAccent)
 	s.label = lipgloss.NewStyle().Foreground(colDim)
 	s.value = lipgloss.NewStyle().Foreground(colText)
+	s.cursor = lipgloss.NewStyle().Foreground(colAccent).Bold(true)
+
+	s.jsonKey = lipgloss.NewStyle().Foreground(colBlue)
+	s.jsonStr = lipgloss.NewStyle().Foreground(colGreen)
+	s.jsonNum = lipgloss.NewStyle().Foreground(colYellow)
+	s.jsonPn = lipgloss.NewStyle().Foreground(colDim)
 
 	s.roleUser = lipgloss.NewStyle().Foreground(colBlue)
 	s.roleAssistant = lipgloss.NewStyle().Foreground(colMagenta)

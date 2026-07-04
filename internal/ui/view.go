@@ -78,20 +78,51 @@ func ensureVP(vp viewport.Model, w, h int) viewport.Model {
 	return vp
 }
 
-// rebuildViewports regenerates viewport content, preserving scroll position
-// unless the viewport is in follow mode (then it stays pinned to the bottom).
+// rebuildViewports regenerates viewport content and scrolls so the cursor entry
+// stays visible (or pins to the bottom when following).
 func (m *model) rebuildViewports() {
 	if !m.ready {
 		return
 	}
-	m.timelineVP.SetContent(m.timelineContent())
-	if m.timelineFollow {
-		m.timelineVP.GotoBottom()
+	m.syncCursors()
+
+	tc, ttop, th := m.timelineContent()
+	m.timelineVP.SetContent(tc)
+	scrollToCursor(&m.timelineVP, m.timelineFollow, ttop, th)
+
+	ec, etop, eh := m.eventsContent()
+	m.eventsVP.SetContent(ec)
+	scrollToCursor(&m.eventsVP, m.eventsFollow, etop, eh)
+}
+
+// scrollToCursor scrolls vp minimally so the [top, top+height) line range is
+// visible; when following (or no cursor) it pins to the bottom.
+func scrollToCursor(vp *viewport.Model, follow bool, top, height int) {
+	if follow || top < 0 {
+		vp.GotoBottom()
+		return
 	}
-	m.eventsVP.SetContent(m.eventsContent())
-	if m.eventsFollow {
-		m.eventsVP.GotoBottom()
+	off := vp.YOffset
+	if top < off {
+		off = top
 	}
+	if top+height > off+vp.Height {
+		off = top + height - vp.Height
+	}
+	if off < 0 {
+		off = 0
+	}
+	vp.SetYOffset(off)
+}
+
+// indentBlock prefixes every line of s with n spaces.
+func indentBlock(s string, n int) string {
+	pad := strings.Repeat(" ", n)
+	lines := strings.Split(s, "\n")
+	for i := range lines {
+		lines[i] = pad + lines[i]
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m *model) View() string {

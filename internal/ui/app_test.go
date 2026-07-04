@@ -20,18 +20,22 @@ func newTestModel() *model {
 	ti := textinput.New()
 	ti.Prompt = "/"
 	return &model{
-		ctx:            context.Background(),
-		interval:       400 * time.Millisecond,
-		st:             newStyles(),
-		keys:           newKeyMap(),
-		help:           help.New(),
-		filter:         ti,
-		byID:           make(map[string]*db.Session),
-		actions:        make(map[string][]*derive.Action),
-		actionByCall:   make(map[string]*derive.Action),
-		timelineFollow: true,
-		eventsFollow:   true,
-		now:            time.Unix(1783128300, 0),
+		ctx:             context.Background(),
+		interval:        400 * time.Millisecond,
+		st:              newStyles(),
+		keys:            newKeyMap(),
+		help:            help.New(),
+		filter:          ti,
+		byID:            make(map[string]*db.Session),
+		actions:         make(map[string][]*derive.Action),
+		actionByCall:    make(map[string]*derive.Action),
+		expandedActions: make(map[int64]bool),
+		expandedEvents:  make(map[int64]bool),
+		timelineFollow:  true,
+		eventsFollow:    true,
+		timelineCursor:  -1,
+		eventsCursor:    -1,
+		now:             time.Unix(1783128300, 0),
 	}
 }
 
@@ -131,6 +135,77 @@ func TestTabCyclesFocus(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	if m.focus != start {
 		t.Errorf("three tabs should return to start focus, got %v want %v", m.focus, start)
+	}
+}
+
+func lineCount(s string) int { return strings.Count(s, "\n") + 1 }
+
+func TestTimelineExpand(t *testing.T) {
+	m := newTestModel()
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.applyDelta(sampleDelta(m.now))
+	m.focus = paneTimeline
+	m.rebuildViewports()
+
+	before, _, _ := m.timelineContent()
+	m.toggleExpand(false, false) // expand cursor action
+	after, _, _ := m.timelineContent()
+
+	if lineCount(after) <= lineCount(before) {
+		t.Errorf("expanding an action should add lines: before=%d after=%d",
+			lineCount(before), lineCount(after))
+	}
+	// the expanded block should contain the pretty-printed argument key
+	if !strings.Contains(after, "cmd") {
+		t.Errorf("expanded action should show argument JSON, got:\n%s", after)
+	}
+
+	m.toggleExpand(true, false) // collapse
+	if collapsed, _, _ := m.timelineContent(); lineCount(collapsed) != lineCount(before) {
+		t.Errorf("collapse should restore line count: got %d want %d",
+			lineCount(collapsed), lineCount(before))
+	}
+}
+
+func TestEventsExpand(t *testing.T) {
+	m := newTestModel()
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.applyDelta(sampleDelta(m.now))
+	m.focus = paneEvents
+	m.rebuildViewports()
+
+	before, _, _ := m.eventsContent()
+	m.toggleExpand(false, false)
+	after, _, _ := m.eventsContent()
+	if lineCount(after) <= lineCount(before) {
+		t.Errorf("expanding an event should add lines: before=%d after=%d",
+			lineCount(before), lineCount(after))
+	}
+}
+
+func TestCursorFollowsNewData(t *testing.T) {
+	m := newTestModel()
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.focus = paneEvents
+	m.applyDelta(sampleDelta(m.now))
+	m.rebuildViewports()
+	// following: cursor pinned to last visible event
+	if m.eventsCursor != m.visibleEventCount()-1 {
+		t.Errorf("following cursor should be at last, got %d of %d", m.eventsCursor, m.visibleEventCount())
+	}
+	// move up → breaks follow
+	m.moveEventsCursor(-1)
+	if m.eventsFollow {
+		t.Error("moving up should break follow")
+	}
+	prev := m.eventsCursor
+	// new data arrives; non-following cursor should not jump to bottom
+	d := sampleDelta(m.now)
+	d.NewMessages = d.NewMessages[:0] // sessions-only refresh
+	m.applyDelta(d)
+	m.rebuildViewports()
+	if m.eventsCursor != prev {
+		t.Errorf("non-following cursor should stay put: got %d want %d", m.eventsCursor, prev)
 	}
 }
 

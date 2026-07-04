@@ -42,6 +42,9 @@ func TestActionsFromAssistant_RealRow(t *testing.T) {
 	if a.ArgsSummary == "" {
 		t.Errorf("ArgsSummary empty")
 	}
+	if a.ArgsRaw != `{"action":"type","text":"hermes computer-use doctor"}` {
+		t.Errorf("ArgsRaw should retain full untruncated JSON, got %q", a.ArgsRaw)
+	}
 	if a.Done() {
 		t.Errorf("action should not be Done before result")
 	}
@@ -82,6 +85,28 @@ func TestApplyToolResult_PairingAndDuration(t *testing.T) {
 	}
 	if d := a.Duration(a.EndedAt); d.Seconds() != 2.5 {
 		t.Errorf("Duration = %v, want 2.5s", d)
+	}
+	if a.ResultRaw != `{"ok": true, "output": "file1\nfile2"}` {
+		t.Errorf("ResultRaw should retain full result content, got %q", a.ResultRaw)
+	}
+}
+
+func TestMessageEventRaw(t *testing.T) {
+	// tool result: Raw is the content
+	tr := mkMsg("tool", `{"error":"denied"}`, "", "c", "s", 1)
+	tr.ToolName = ns("bash")
+	if ev, _ := MessageEvent(tr); ev.Raw != `{"error":"denied"}` {
+		t.Errorf("tool result Raw = %q", ev.Raw)
+	}
+	// single tool call: Raw is the arguments JSON, not the whole array
+	tc := mkMsg("assistant", "", `[{"id":"c","function":{"name":"bash","arguments":"{\"cmd\":\"ls\"}"}}]`, "", "s", 1)
+	if ev, _ := MessageEvent(tc); ev.Raw != `{"cmd":"ls"}` {
+		t.Errorf("single tool call Raw = %q", ev.Raw)
+	}
+	// plain user text: Raw is the full content
+	um := mkMsg("user", "hello world", "", "", "s", 1)
+	if ev, _ := MessageEvent(um); ev.Raw != "hello world" {
+		t.Errorf("user Raw = %q", ev.Raw)
 	}
 }
 

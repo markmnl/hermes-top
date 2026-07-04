@@ -38,14 +38,20 @@ func (s ActionStatus) String() string {
 
 // Action is a tool invocation and (once it arrives) its result.
 type Action struct {
+	// Seq is a stable, process-unique id assigned by the UI when the action is
+	// recorded; used to key per-action expansion state. Zero until assigned.
+	Seq int64
+
 	CallID      string
 	SessionID   string
 	Name        string
-	ArgsSummary string
+	ArgsSummary string // one-line collapsed args (plain-text fallback)
+	ArgsRaw     string // untruncated raw arguments JSON, for pretty-printing
 	StartedAt   time.Time
 	EndedAt     time.Time // zero until the result arrives
 	Status      ActionStatus
-	Result      string // one-line result snippet
+	Result      string // one-line result snippet (plain-text fallback)
+	ResultRaw   string // untruncated raw result content, for pretty-printing
 }
 
 // Done reports whether the tool result has been paired in.
@@ -97,6 +103,7 @@ func ActionsFromAssistant(m db.Message) []Action {
 			SessionID:   m.SessionID,
 			Name:        "tool_calls?",
 			ArgsSummary: truncate(collapse(raw), 120),
+			ArgsRaw:     raw,
 			StartedAt:   start,
 			Status:      ActionPending,
 		}}
@@ -113,6 +120,7 @@ func ActionsFromAssistant(m db.Message) []Action {
 			SessionID:   m.SessionID,
 			Name:        name,
 			ArgsSummary: truncate(collapse(c.Function.Arguments), 120),
+			ArgsRaw:     c.Function.Arguments,
 			StartedAt:   start,
 			Status:      ActionPending,
 		})
@@ -125,6 +133,7 @@ func ApplyToolResult(a *Action, m db.Message) {
 	a.EndedAt = m.Time()
 	a.Status = SniffStatus(m.Content)
 	a.Result = truncate(collapse(m.Content), 160)
+	a.ResultRaw = m.Content
 	if a.Name == "" || a.Name == "tool" {
 		if m.ToolName.Valid && m.ToolName.String != "" {
 			a.Name = m.ToolName.String
@@ -148,6 +157,7 @@ func OrphanAction(m db.Message) Action {
 		EndedAt:   t,
 		Status:    SniffStatus(m.Content),
 		Result:    truncate(collapse(m.Content), 160),
+		ResultRaw: m.Content,
 	}
 }
 

@@ -30,12 +30,18 @@ const (
 // Event is one line in the scrolling events pane. It carries plain data;
 // styling is applied at render time in the UI.
 type Event struct {
+	// Seq is a stable, process-unique id assigned by the UI when the event is
+	// recorded; used to key per-event expansion state. Zero until assigned.
+	Seq int64
+
 	Time      time.Time
 	SessionID string // full id
 	Short     string // short id for display
 	Kind      EventKind
 	Role      string
-	Summary   string // one-line plain-text summary
+	Name      string // tool name(s) for tool call/result events; else ""
+	Summary   string // one-line plain-text summary (also used for filtering)
+	Raw       string // untruncated payload to expand (JSON or full text); may be ""
 	Err       bool   // tool result that looked like an error
 }
 
@@ -75,28 +81,43 @@ func MessageEvent(m db.Message) (Event, bool) {
 			name = "tool"
 		}
 		e.Err = SniffStatus(m.Content) == ActionError
+		e.Name = name
 		e.Summary = "← " + name + ": " + truncate(collapse(m.Content), 160)
+		e.Raw = m.Content
 	case m.ToolCalls.Valid && strings.TrimSpace(m.ToolCalls.String) != "":
 		e.Kind = EvToolCall
 		acts := ActionsFromAssistant(m)
 		names := make([]string, 0, len(acts))
+		bare := make([]string, 0, len(acts))
 		for _, a := range acts {
+			bare = append(bare, a.Name)
 			if a.ArgsSummary != "" {
 				names = append(names, a.Name+"("+truncate(a.ArgsSummary, 60)+")")
 			} else {
 				names = append(names, a.Name)
 			}
 		}
+		e.Name = strings.Join(bare, ", ")
 		e.Summary = "→ " + strings.Join(names, ", ")
+		// A single call expands to just its arguments; multiple calls expand to
+		// the whole tool_calls array.
+		if len(acts) == 1 && acts[0].ArgsRaw != "" {
+			e.Raw = acts[0].ArgsRaw
+		} else {
+			e.Raw = m.ToolCalls.String
+		}
 	case m.Role == "assistant":
 		e.Kind = EvAssistant
 		e.Summary = truncate(collapse(m.Content), 200)
+		e.Raw = m.Content
 	case m.Role == "system":
 		e.Kind = EvSystem
 		e.Summary = truncate(collapse(m.Content), 200)
+		e.Raw = m.Content
 	default: // user and anything else
 		e.Kind = EvUser
 		e.Summary = truncate(collapse(m.Content), 200)
+		e.Raw = m.Content
 	}
 	if e.Summary == "" {
 		e.Summary = "(empty)"

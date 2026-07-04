@@ -74,16 +74,27 @@ non-zero.
 
 | Key | Action |
 |-----|--------|
-| `↑` / `k`, `↓` / `j` | Move selection / scroll the focused pane |
+| `↑` / `k`, `↓` / `j` | Move the entry cursor in the focused pane |
 | `Tab` | Cycle focus: sessions → actions → events |
+| `Enter` / `→` | Expand the highlighted action/event to full pretty-printed JSON |
+| `←` | Collapse the highlighted entry |
 | `/` | Filter events (type to filter live; `Enter` applies, `Esc` clears) |
 | `g` | Jump to top of the focused pane |
 | `G` | Jump to bottom of the focused pane (re-enables auto-follow) |
 | `r` | Force an immediate refresh |
 | `q` / `Ctrl-C` | Quit |
 
-Panes auto-follow new rows while pinned to the bottom (like `tail -f`). Scroll
-up and the position freezes as new events arrive; press `G` to re-pin.
+In the actions and events panes the highlighted row is marked with `▸`. Panes
+auto-follow new rows while the cursor is on the newest entry (like `tail -f`);
+move the cursor up and the position freezes as new rows arrive, `G` re-pins.
+
+### JSON display
+
+Tool arguments and results are JSON. By default each entry is a single readable
+line — rendered as `key=value` with escapes decoded (so `&` shows as `&`, not
+`&`) and subtly syntax-colored. Highlight an entry and press `Enter` to
+expand it inline into full, indented, syntax-highlighted JSON; `←` collapses it.
+Non-JSON payloads (e.g. an assistant's prose) expand to the full wrapped text.
 
 ## What it shows
 
@@ -97,9 +108,11 @@ up and the position freezes as new events arrive; press `G` to re-pin.
   provider, id/source, runtime, token breakdown, activity counts, estimated/
   actual cost, and working directory.
 - **Actions (middle-right)** — the selected session's tool-call timeline: each
-  call with its arguments, and once the result arrives, `✓`/`✗` plus duration.
+  call with its arguments (inline `key=value`), and once the result arrives,
+  `✓`/`✗` plus duration. Press `Enter` on a row to expand its JSON.
 - **Events (bottom)** — a scrolling, filterable stream of every message and
-  synthesized session start/end event across all sessions.
+  synthesized session start/end event across all sessions; tool calls/results
+  render inline and expand to full JSON on `Enter`.
 
 ### Session liveness
 
