@@ -7,25 +7,7 @@ reading Hermes's SQLite `state.db`.
 
 **It never writes to the database and cannot interfere with a running Hermes.**
 
-```
-hermes-top  ⠦  sessions 17 (1 running)  ·  tokens 11.0M in / 115.0k out  ·  updated just now
-╭─ sessions ─────────╮╭─ session ───────────────────────────────────────────╮
-│● 5945c6  cli        ││Fixing DNF Upgrade Certificate Errors                 │
-│  qwen3.6:35b 363ktok││status       running                                 │
-│■ b67460  tui        ││model        qwen3.6:35b  via custom                  │
-│  qwen3.6:35b 745ktok││runtime      22m38s  started 1h ago                   │
-│ …                   ││tokens       in 359.5k · out 4.3k                     │
-│                     │╰──────────────────────────────────────────────────────╯
-│                     │╭─ actions · 12 ──────────────────────────────────────╮
-│                     ││09:22:07 ✓ computer_use({"action":"list_apps"})   25ms│
-│                     ││09:22:46 ✗ computer_use({"action":"type",…})     42.0s│
-╰─────────────────────╯╰──────────────────────────────────────────────────────╯
-╭─ events · 646 ───────────────────────────────────────────────────────────────╮
-│09:23:27 5945c6 [tool]      ← computer_use: {"error": "denied by user", …}     │
-│09:23:34 5945c6 [assistant] I can't type it right now (it was denied)…         │
-╰────────────────────────────────────────────────────────────────────────────────╯
-↑/k up • ↓/j down • tab pane • / filter • g top • G bottom • r refresh • q quit
-```
+[image: hermes-top] ./docs/hermes-top.png
 
 ## Requirements
 
